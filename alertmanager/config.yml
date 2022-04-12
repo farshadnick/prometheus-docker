@@ -1,11 +1,54 @@
 global:
   resolve_timeout: 1m
+  slack_api_url: https://hooks.slack.com/services/T014AGDHLPJ/B014JPRHKUH/xxxxxxxxxxxxxx
 route:
-  receiver: 'telegram'
-
-
+  group_by: ['job']
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 1m
+  receiver: 'slack-notifications'
+  routes:
+  - receiver: uptime
+    match:
+      alertname: uptime
+    repeat_interval: 1m
+  - receiver: bot
+    match:
+      alertname: uptime-bot
+    repeat_interval: 1m
 receivers:
-- name: 'telegram'
+- name: 'slack-notifications'
+  slack_configs:
+  - channel: '#kube-alerts'
+    api_url: https://hooks.slack.com/services/T014AGDHLPJ/B014JPRHKUH/xxxxxxxxxxxxxxx
+    text: >-
+           {{ range .Alerts }}
+              *Alert:* {{ .Annotations.summary }} - `{{ .Labels.severity }}`
+              *Message:* {{ .Annotations.message }}
+           {{ end }}
+- name: uptime
+  slack_configs:
+  - send_resolved: true
+    http_config: {}
+    api_url: https://hooks.slack.com/services/T014AGDHLPJ/B017FUMM56D/xxxxxxxxxxx
+    channel: '#uptime'
+    username: prometheus
+    color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'
+    title: '{{ template "slack.default.title" . }}'
+    title_link: '{{ template "slack.default.titlelink" . }}'
+    pretext: '{{ template "slack.default.pretext" . }}'
+    text: >-
+           {{ range .Alerts }}
+              *Alert:* {{ .Annotations.summary }} - `{{ .Labels.severity }}`
+              *Message:* {{ .Annotations.message }}
+           {{ end }}
+    footer: '{{ template "slack.default.footer" . }}'
+    fallback: '{{ template "slack.default.fallback" . }}'
+    callback_id: '{{ template "slack.default.callbackid" . }}'
+    icon_emoji: '{{ template "slack.default.iconemoji" . }}'
+    icon_url: '{{ template "slack.default.iconurl" . }}'
+- name: bot
   webhook_configs:
   - send_resolved: true
-    url: 'http://192.168.110.200:8080'
+    url: http://alertmanager-bot:8080
+
